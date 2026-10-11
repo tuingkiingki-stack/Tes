@@ -1,0 +1,341 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable hardened primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isNumberList(listVal, minSize, maxSize) {
+      return listVal is list &&
+             listVal.size() >= minSize &&
+             listVal.size() <= maxSize &&
+             (listVal.size() == 0 || (listVal[0] is int || listVal[0] is float));
+    }
+
+    function isIntList(listVal, maxSize) {
+      return listVal is list &&
+             listVal.size() <= maxSize &&
+             (listVal.size() == 0 || listVal[0] is int);
+    }
+
+    // 1. UserProfile validation helper
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             (data.initialCapital is int || data.initialCapital is float) && data.initialCapital >= 0 &&
+             data.preferredPriceSource is string && data.preferredPriceSource in ['BINANCE_FUTURES', 'BINANCE_SPOT', 'COINGECKO'] &&
+             data.priceStaleThresholdSec is int && data.priceStaleThresholdSec >= 10 && data.priceStaleThresholdSec <= 3600 &&
+             data.notificationsEnabled is bool &&
+             data.revision is int && data.revision >= 1 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 2. Mentor validation helper
+    function isValidMentor(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.handleOrChannel is string && data.handleOrChannel.size() <= 120 &&
+             data.specialty is string && data.specialty.size() <= 100 &&
+             data.isDeleted is bool &&
+             data.revision is int && data.revision >= 1 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 3. TradingSignal validation helper
+    function isValidTradingSignal(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.mentorId is string && data.mentorId.size() >= 1 && data.mentorId.size() <= 128 &&
+             data.mentorName is string && data.mentorName.size() >= 1 && data.mentorName.size() <= 80 &&
+             data.pair is string && data.pair.size() >= 3 && data.pair.size() <= 30 &&
+             data.direction is string && data.direction in ['LONG', 'SHORT'] &&
+             data.signalTimestampMillis is int && data.signalTimestampMillis > 0 &&
+             isNumberList(data.entryPrices, 1, 10) &&
+             isIntList(data.reachedEntryIndices, 10) &&
+             isIntList(data.missedEntryIndices, 10) &&
+             isNumberList(data.tpPrices, 1, 10) &&
+             isIntList(data.reachedTpIndices, 10) &&
+             (data.slPrice is int || data.slPrice is float) && data.slPrice > 0 &&
+             data.slHit is bool &&
+             data.returnedToEntry is bool &&
+             data.status is string && data.status in ['ACTIVE', 'COMPLETED', 'CANCELLED', 'ARCHIVED'] &&
+             data.outcome is string && data.outcome in ['PENDING', 'WIN', 'LOSS', 'BREAKEVEN', 'CANCELLED_NO_RESULT'] &&
+             data.isConservativeEstimation is bool &&
+             data.priceSource is string && data.priceSource in ['BINANCE_FUTURES', 'BINANCE_SPOT', 'COINGECKO'] &&
+             data.outcomeSource is string && data.outcomeSource in ['NONE', 'BINANCE_FUTURES', 'BINANCE_SPOT', 'COINGECKO'] &&
+             data.hasSourceConflict is bool &&
+             (data.lastCheckedPrice is int || data.lastCheckedPrice is float) && data.lastCheckedPrice >= 0 &&
+             data.lastCheckedAtMillis is int && data.lastCheckedAtMillis >= 0 &&
+             data.completedAtMillis is int && data.completedAtMillis >= 0 &&
+             data.isDeleted is bool &&
+             data.revision is int && data.revision >= 1 &&
+             data.lastOperationId is string && data.lastOperationId.size() >= 1 && data.lastOperationId.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 4. SignalEvent validation helper
+    function isValidSignalEvent(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.signalId is string && data.signalId.size() >= 1 && data.signalId.size() <= 128 &&
+             data.pair is string && data.pair.size() >= 3 && data.pair.size() <= 30 &&
+             data.direction is string && data.direction in ['LONG', 'SHORT'] &&
+             data.eventType is string && data.eventType in [
+               'CREATED', 'ENTRY_HIT', 'TP_HIT', 'SL_HIT', 'RETURN_TO_ENTRY',
+               'ENTRY_MISSED', 'COMPLETED', 'CANCELLED', 'ARCHIVED', 'RESTORED',
+               'EDITED', 'COINGECKO_CONFLICT', 'CONSERVATIVE_ESTIMATE'
+             ] &&
+             data.levelIndex is int && data.levelIndex >= -1 && data.levelIndex <= 20 &&
+             (data.price is int || data.price is float) && data.price >= 0 &&
+             data.priceSource is string && data.priceSource in ['BINANCE_FUTURES', 'BINANCE_SPOT', 'COINGECKO', 'USER', 'SYSTEM'] &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 500 &&
+             data.eventTimestampMillis is int && data.eventTimestampMillis > 0 &&
+             data.idempotencyKey is string && data.idempotencyKey.size() >= 1 && data.idempotencyKey.size() <= 128 &&
+             data.notificationStatus is string && data.notificationStatus in ['PENDING', 'SENT', 'FAILED', 'NOT_REQUIRED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // 5. RealizedTrade validation helper
+    function isValidRealizedTrade(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() <= 128 &&
+             data.signalId is string && data.signalId.size() <= 128 &&
+             data.pair is string && data.pair.size() >= 3 && data.pair.size() <= 30 &&
+             data.direction is string && data.direction in ['LONG', 'SHORT'] &&
+             (data.entryPrice is int || data.entryPrice is float) && data.entryPrice > 0 &&
+             (data.exitPrice is int || data.exitPrice is float) && data.exitPrice > 0 &&
+             (data.positionSizeUsdt is int || data.positionSizeUsdt is float) && data.positionSizeUsdt > 0 &&
+             (data.feeUsdt is int || data.feeUsdt is float) && data.feeUsdt >= 0 &&
+             (data.realizedPnlUsdt is int || data.realizedPnlUsdt is float) &&
+             data.closedAtMillis is int && data.closedAtMillis > 0 &&
+             data.isDeleted is bool &&
+             data.revision is int && data.revision >= 1 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+      allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'initialCapital', 'preferredPriceSource',
+                         'priceStaleThresholdSec', 'notificationsEnabled',
+                         'revision', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'initialCapital', 'preferredPriceSource',
+                         'priceStaleThresholdSec', 'notificationsEnabled',
+                         'revision', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidUserProfile(incoming()) &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'initialCapital', 'preferredPriceSource',
+                         'priceStaleThresholdSec', 'notificationsEnabled',
+                         'revision', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+
+      // Subcollection: Mentors
+      match /mentors/{mentorId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(mentorId);
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(mentorId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'displayName', 'handleOrChannel', 'specialty',
+                           'isDeleted', 'revision', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'displayName', 'handleOrChannel', 'specialty',
+                           'isDeleted', 'revision', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMentor(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidMentor(incoming()) &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(mentorId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'displayName', 'handleOrChannel', 'specialty',
+                           'isDeleted', 'revision', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(mentorId);
+      }
+
+      // Subcollection: Trading Signals
+      match /signals/{signalId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(signalId);
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(signalId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'mentorId', 'mentorName', 'pair', 'direction',
+                           'signalTimestampMillis', 'entryPrices', 'reachedEntryIndices',
+                           'missedEntryIndices', 'tpPrices', 'reachedTpIndices',
+                           'slPrice', 'slHit', 'returnedToEntry', 'status', 'outcome',
+                           'isConservativeEstimation', 'priceSource', 'outcomeSource',
+                           'hasSourceConflict', 'lastCheckedPrice', 'lastCheckedAtMillis',
+                           'completedAtMillis', 'isDeleted', 'revision', 'lastOperationId',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'mentorId', 'mentorName', 'pair', 'direction',
+                           'signalTimestampMillis', 'entryPrices', 'reachedEntryIndices',
+                           'missedEntryIndices', 'tpPrices', 'reachedTpIndices',
+                           'slPrice', 'slHit', 'returnedToEntry', 'status', 'outcome',
+                           'isConservativeEstimation', 'priceSource', 'outcomeSource',
+                           'hasSourceConflict', 'lastCheckedPrice', 'lastCheckedAtMillis',
+                           'completedAtMillis', 'isDeleted', 'revision', 'lastOperationId',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidTradingSignal(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidTradingSignal(incoming()) &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(signalId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action 1: Active or Archived signals can be updated/monitored/restored/cancelled
+                           (existing().status in ['ACTIVE', 'ARCHIVED'] &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'mentorId', 'mentorName', 'pair', 'direction',
+                              'signalTimestampMillis', 'entryPrices', 'reachedEntryIndices',
+                              'missedEntryIndices', 'tpPrices', 'reachedTpIndices',
+                              'slPrice', 'slHit', 'returnedToEntry', 'status', 'outcome',
+                              'isConservativeEstimation', 'priceSource', 'outcomeSource',
+                              'hasSourceConflict', 'lastCheckedPrice', 'lastCheckedAtMillis',
+                              'completedAtMillis', 'isDeleted', 'revision', 'lastOperationId',
+                              'updatedAt'
+                            ])) ||
+                           // Action 2: Terminal State Locking — Completed or Cancelled signals cannot be reactivated or have levels/outcome altered; only archived or soft-deleted
+                           (existing().status in ['COMPLETED', 'CANCELLED'] &&
+                            incoming().status in ['COMPLETED', 'CANCELLED', 'ARCHIVED'] &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'status', 'isDeleted', 'revision', 'lastOperationId', 'updatedAt'
+                            ]))
+                         );
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(signalId);
+      }
+
+      // Subcollection: Signal Events
+      match /signal_events/{eventId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(eventId);
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(eventId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'signalId', 'pair', 'direction', 'eventType',
+                           'levelIndex', 'price', 'priceSource', 'message',
+                           'eventTimestampMillis', 'idempotencyKey', 'notificationStatus',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'signalId', 'pair', 'direction', 'eventType',
+                           'levelIndex', 'price', 'priceSource', 'message',
+                           'eventTimestampMillis', 'idempotencyKey', 'notificationStatus',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidSignalEvent(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidSignalEvent(incoming()) &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(eventId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().signalId == existing().signalId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'notificationStatus', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(eventId);
+      }
+
+      // Subcollection: Realized Trades
+      match /realized_trades/{tradeId} {
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(tradeId);
+        allow list: if isSignedIn() && request.auth.uid == userId && resource.data.userId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(tradeId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'signalId', 'pair', 'direction',
+                           'entryPrice', 'exitPrice', 'positionSizeUsdt',
+                           'feeUsdt', 'realizedPnlUsdt', 'closedAtMillis',
+                           'isDeleted', 'revision', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'signalId', 'pair', 'direction',
+                           'entryPrice', 'exitPrice', 'positionSizeUsdt',
+                           'feeUsdt', 'realizedPnlUsdt', 'closedAtMillis',
+                           'isDeleted', 'revision', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidRealizedTrade(incoming());
+
+        allow update: if isSignedIn() &&
+                         isValidRealizedTrade(incoming()) &&
+                         request.auth.uid == userId &&
+                         isValidId(userId) &&
+                         isValidId(tradeId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'isDeleted', 'revision', 'updatedAt'
+                         ]);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidId(tradeId);
+      }
+    }
+  }
+}

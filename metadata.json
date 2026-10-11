@@ -1,0 +1,6 @@
+{
+  "name": "Jurnal Sinyal Mentor",
+  "description": "Aplikasi pencatat sinyal trading crypto dari berbagai mentor dengan pemantauan harga otomatis, grafik TradingView, statistik Win Rate, dan sinkronisasi cloud.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

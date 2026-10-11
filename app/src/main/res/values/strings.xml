@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Jurnal Sinyal Mentor</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_signals">Sinyal</string>
+    <string name="nav_mentors">Mentor</string>
+    <string name="nav_settings">Pengaturan</string>
+    <string name="fab_add_signal">Tambah Sinyal</string>
+    <string name="error_no_google_account">Tidak ditemukan akun Google di perangkat ini. Tambahkan akun Google di Pengaturan Android.</string>
+    <string name="error_google_sign_in_failed">Gagal masuk dengan Google: %1$s</string>
+    <string name="error_invalid_credential_type">Tipe kredensial tidak dikenali.</string>
+</resources>

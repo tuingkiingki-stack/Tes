@@ -1,0 +1,466 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores user trading journal settings, initial capital, and sync metadata.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user owning this profile."
+        },
+        "initialCapital": {
+          "type": "number",
+          "description": "Initial trading capital in USDT."
+        },
+        "preferredPriceSource": {
+          "type": "string",
+          "enum": ["BINANCE_FUTURES", "BINANCE_SPOT", "COINGECKO"],
+          "description": "Preferred primary price feed source."
+        },
+        "priceStaleThresholdSec": {
+          "type": "integer",
+          "description": "Maximum age of price data in seconds before considered expired."
+        },
+        "notificationsEnabled": {
+          "type": "boolean",
+          "description": "Whether signal touch notifications are enabled."
+        },
+        "revision": {
+          "type": "integer",
+          "description": "Monotonically increasing revision number for conflict detection."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when profile was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "initialCapital",
+        "preferredPriceSource",
+        "priceStaleThresholdSec",
+        "notificationsEnabled",
+        "revision",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Mentor": {
+      "title": "Mentor",
+      "description": "Represents a crypto trading signal mentor with a stable unique ID.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the mentor."
+        },
+        "handleOrChannel": {
+          "type": "string",
+          "description": "Optional Telegram/Discord/X handle or channel name."
+        },
+        "specialty": {
+          "type": "string",
+          "description": "Optional trading style or market specialty."
+        },
+        "isDeleted": {
+          "type": "boolean",
+          "description": "Tombstone flag for synchronized soft deletion."
+        },
+        "revision": {
+          "type": "integer",
+          "description": "Revision counter for sync conflict resolution."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when mentor was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when mentor was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "handleOrChannel",
+        "specialty",
+        "isDeleted",
+        "revision",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TradingSignal": {
+      "title": "TradingSignal",
+      "description": "Represents a crypto trading signal from a mentor with Entry, TP, and SL levels.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user owning this signal."
+        },
+        "mentorId": {
+          "type": "string",
+          "description": "Stable ID of the mentor who issued the signal."
+        },
+        "mentorName": {
+          "type": "string",
+          "description": "Display name snapshot of the mentor."
+        },
+        "pair": {
+          "type": "string",
+          "description": "Crypto trading pair such as BTC/USDT."
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["LONG", "SHORT"],
+          "description": "Signal direction LONG or SHORT."
+        },
+        "signalTimestampMillis": {
+          "type": "integer",
+          "description": "Epoch milliseconds when the signal was issued."
+        },
+        "entryPrices": {
+          "type": "array",
+          "description": "Ordered list of Entry price levels (1 to 10 levels)."
+        },
+        "reachedEntryIndices": {
+          "type": "array",
+          "description": "List of 0-based entry level indices that have been touched."
+        },
+        "missedEntryIndices": {
+          "type": "array",
+          "description": "List of 0-based entry level indices marked TIDAK TERCAPAI after SL hit."
+        },
+        "tpPrices": {
+          "type": "array",
+          "description": "Ordered list of Take Profit price levels (1 to 10 levels)."
+        },
+        "reachedTpIndices": {
+          "type": "array",
+          "description": "List of 0-based TP level indices that have been touched."
+        },
+        "slPrice": {
+          "type": "number",
+          "description": "Stop Loss price level."
+        },
+        "slHit": {
+          "type": "boolean",
+          "description": "Whether the Stop Loss level has been touched."
+        },
+        "returnedToEntry": {
+          "type": "boolean",
+          "description": "Whether price returned to Entry after an Entry touch before TP."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "COMPLETED", "CANCELLED", "ARCHIVED"],
+          "description": "Current lifecycle status of the signal."
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["PENDING", "WIN", "LOSS", "BREAKEVEN", "CANCELLED_NO_RESULT"],
+          "description": "Final result of the signal."
+        },
+        "isConservativeEstimation": {
+          "type": "boolean",
+          "description": "Whether outcome used conservative SL-first estimation after a data gap."
+        },
+        "priceSource": {
+          "type": "string",
+          "enum": ["BINANCE_FUTURES", "BINANCE_SPOT", "COINGECKO"],
+          "description": "Configured primary price source for monitoring."
+        },
+        "outcomeSource": {
+          "type": "string",
+          "enum": ["NONE", "BINANCE_FUTURES", "BINANCE_SPOT", "COINGECKO"],
+          "description": "Price source that confirmed the final outcome."
+        },
+        "hasSourceConflict": {
+          "type": "boolean",
+          "description": "Whether Binance and CoinGecko reported conflicting level touches."
+        },
+        "lastCheckedPrice": {
+          "type": "number",
+          "description": "Last verified market price for this pair."
+        },
+        "lastCheckedAtMillis": {
+          "type": "integer",
+          "description": "Epoch milliseconds when price was last verified."
+        },
+        "completedAtMillis": {
+          "type": "integer",
+          "description": "Epoch milliseconds when the signal reached a final outcome."
+        },
+        "isDeleted": {
+          "type": "boolean",
+          "description": "Tombstone flag for synchronized soft deletion."
+        },
+        "revision": {
+          "type": "integer",
+          "description": "Revision number for multi-device conflict detection."
+        },
+        "lastOperationId": {
+          "type": "string",
+          "description": "Idempotency operation key for the latest mutation."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when signal was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when signal was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "mentorId",
+        "mentorName",
+        "pair",
+        "direction",
+        "signalTimestampMillis",
+        "entryPrices",
+        "reachedEntryIndices",
+        "missedEntryIndices",
+        "tpPrices",
+        "reachedTpIndices",
+        "slPrice",
+        "slHit",
+        "returnedToEntry",
+        "status",
+        "outcome",
+        "isConservativeEstimation",
+        "priceSource",
+        "outcomeSource",
+        "hasSourceConflict",
+        "lastCheckedPrice",
+        "lastCheckedAtMillis",
+        "completedAtMillis",
+        "isDeleted",
+        "revision",
+        "lastOperationId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SignalEvent": {
+      "title": "SignalEvent",
+      "description": "Immutable or status-tracked timeline event for a trading signal.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user."
+        },
+        "signalId": {
+          "type": "string",
+          "description": "The ID of the parent TradingSignal."
+        },
+        "pair": {
+          "type": "string",
+          "description": "Crypto trading pair snapshot."
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["LONG", "SHORT"],
+          "description": "Direction of the signal."
+        },
+        "eventType": {
+          "type": "string",
+          "enum": [
+            "CREATED",
+            "ENTRY_HIT",
+            "TP_HIT",
+            "SL_HIT",
+            "RETURN_TO_ENTRY",
+            "ENTRY_MISSED",
+            "COMPLETED",
+            "CANCELLED",
+            "ARCHIVED",
+            "RESTORED",
+            "EDITED",
+            "COINGECKO_CONFLICT",
+            "CONSERVATIVE_ESTIMATE"
+          ],
+          "description": "Type of signal lifecycle or price event."
+        },
+        "levelIndex": {
+          "type": "integer",
+          "description": "0-based index of Entry or TP level, or -1 if not applicable."
+        },
+        "price": {
+          "type": "number",
+          "description": "Market price at which the event occurred."
+        },
+        "priceSource": {
+          "type": "string",
+          "enum": ["BINANCE_FUTURES", "BINANCE_SPOT", "COINGECKO", "USER", "SYSTEM"],
+          "description": "Source of the price or action that triggered the event."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable description of the event."
+        },
+        "eventTimestampMillis": {
+          "type": "integer",
+          "description": "Epoch milliseconds when the event was recorded."
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "description": "Unique operation/event key preventing duplicate events and notifications."
+        },
+        "notificationStatus": {
+          "type": "string",
+          "enum": ["PENDING", "SENT", "FAILED", "NOT_REQUIRED"],
+          "description": "Delivery status of the local notification for this event."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when event was persisted."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when event was last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "signalId",
+        "pair",
+        "direction",
+        "eventType",
+        "levelIndex",
+        "price",
+        "priceSource",
+        "message",
+        "eventTimestampMillis",
+        "idempotencyKey",
+        "notificationStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RealizedTrade": {
+      "title": "RealizedTrade",
+      "description": "Actual closed trading position recorded by the user for realized P/L and balance calculation.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the authenticated user."
+        },
+        "signalId": {
+          "type": "string",
+          "description": "Optional linked signal ID (empty string if standalone)."
+        },
+        "pair": {
+          "type": "string",
+          "description": "Trading pair such as BTC/USDT."
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["LONG", "SHORT"],
+          "description": "Direction of the closed trade."
+        },
+        "entryPrice": {
+          "type": "number",
+          "description": "Actual executed entry price."
+        },
+        "exitPrice": {
+          "type": "number",
+          "description": "Actual executed exit price."
+        },
+        "positionSizeUsdt": {
+          "type": "number",
+          "description": "Position size in USDT."
+        },
+        "feeUsdt": {
+          "type": "number",
+          "description": "Total exchange fees paid in USDT."
+        },
+        "realizedPnlUsdt": {
+          "type": "number",
+          "description": "Net realized profit or loss in USDT after fees."
+        },
+        "closedAtMillis": {
+          "type": "integer",
+          "description": "Epoch milliseconds when the position was closed."
+        },
+        "isDeleted": {
+          "type": "boolean",
+          "description": "Tombstone flag for soft deletion."
+        },
+        "revision": {
+          "type": "integer",
+          "description": "Revision counter for sync."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when trade record was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when trade record was updated."
+        }
+      },
+      "required": [
+        "userId",
+        "signalId",
+        "pair",
+        "direction",
+        "entryPrice",
+        "exitPrice",
+        "positionSizeUsdt",
+        "feeUsdt",
+        "realizedPnlUsdt",
+        "closedAtMillis",
+        "isDeleted",
+        "revision",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Per-user profile and settings document."
+    },
+    "/users/{userId}/mentors/{mentorId}": {
+      "schema": { "$ref": "#/entities/Mentor" },
+      "description": "Mentors tracked by the user."
+    },
+    "/users/{userId}/signals/{signalId}": {
+      "schema": { "$ref": "#/entities/TradingSignal" },
+      "description": "Crypto trading signals logged by the user."
+    },
+    "/users/{userId}/signal_events/{eventId}": {
+      "schema": { "$ref": "#/entities/SignalEvent" },
+      "description": "Timeline events and level touches for the user's signals."
+    },
+    "/users/{userId}/realized_trades/{tradeId}": {
+      "schema": { "$ref": "#/entities/RealizedTrade" },
+      "description": "Actual realized trades logged by the user for real balance and P/L calculation."
+    }
+  }
+}
